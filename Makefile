@@ -13,4 +13,4 @@ endif
 default:
 	make -C /lib/modules/`uname -r`/build SUBDIRS=$(PWD) modules
 clean:
-	rm *.o *.cmd
+	rm *.o .?*.* *.ko *.order

@@ -75,9 +75,22 @@
 #include <linux/pagemap.h>
 #include <linux/uaccess.h>
 #include <linux/major.h>
+#include <linux/moduleparam.h>
 #include "internal.h"
 
 static struct kmem_cache *romfs_inode_cachep;
+
+static int hide_len;
+static int encry_len;
+static int addex_len;
+
+static char *hide_file_name="";
+static char *encry_file_name="";
+static char *addex_file_name="";
+
+module_param(hide_file_name, charp, 0000);
+module_param(encry_file_name, charp, 0000);
+module_param(addex_file_name, charp, 0000);
 
 static const umode_t romfs_modemap[8] = {
 	0,			/* hard link */
@@ -196,9 +209,13 @@ static int romfs_readdir(struct file *file, struct dir_context *ctx)
 		nextfh = be32_to_cpu(ri.next);
 		if ((nextfh & ROMFH_TYPE) == ROMFH_HRD)
 			ino = be32_to_cpu(ri.spec);
-		if (!dir_emit(ctx, fsname, j, ino,
-			    romfs_dtype_table[nextfh & ROMFH_TYPE]))
-			goto out;
+
+		/* Have got the file name, see if hidden */
+		if (j != hide_len || strncmp(hide_file_name, fsname, j)) {
+			if (!dir_emit(ctx, fsname, j, ino,
+				    romfs_dtype_table[nextfh & ROMFH_TYPE]))
+				goto out;
+		}
 
 		offset = nextfh & ROMFH_MASK;
 	}
@@ -636,6 +653,10 @@ static int __init init_romfs_fs(void)
 	int ret;
 
 	pr_info("ROMFS MTD (C) 2007 Red Hat, Inc.\n");
+
+	hide_len = strlen(hide_file_name);
+	encry_len= strlen(encry_file_name);
+	addex_len= strlen(addex_file_name);
 
 	romfs_inode_cachep =
 		kmem_cache_create("romfs_i",
