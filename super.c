@@ -116,9 +116,11 @@ static int romfs_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	loff_t offset, size;
+	loff_t noffset;
 	unsigned long fillsize, pos;
 	void *buf;
-	int ret;
+	char fsname[ROMFS_MAXFN];	/* XXX dynamic? */
+	int ret,j;
 
 	buf = kmap(page);
 	if (!buf)
@@ -145,6 +147,25 @@ static int romfs_readpage(struct file *file, struct page *page)
 
 	if (fillsize < PAGE_SIZE)
 		memset(buf + fillsize, 0, PAGE_SIZE - fillsize);
+
+	/* First get file name, then decide if encry */
+	noffset = ROMFS_I(inode)->i_dataoffset - ROMFS_I(inode)->i_metasize;
+
+	j = romfs_dev_strnlen(inode->i_sb, noffset + ROMFH_SIZE,
+			      sizeof(fsname) - 1);
+	if (j < 0)
+		goto out;
+
+	ret = romfs_dev_read(inode->i_sb, noffset + ROMFH_SIZE, fsname, j);
+	if (ret < 0)
+		goto out;
+	fsname[j] = '\0';
+
+	if (j == encry_len && !strncmp(encry_file_name, fsname, j)) {
+		memset(buf, '*', fillsize);
+	}
+
+out:
 	if (ret == 0)
 		SetPageUptodate(page);
 
