@@ -340,6 +340,7 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 	unsigned nextfh;
 	int ret;
 	umode_t mode;
+	char fsname[ROMFS_MAXFN];
 
 	/* we might have to traverse a chain of "hard link" file entries to get
 	 * to the actual file */
@@ -382,6 +383,15 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 
 	/* set up mode and ops */
 	mode = romfs_modemap[nextfh & ROMFH_TYPE];
+
+	ret = romfs_dev_read(i->i_sb, pos + ROMFH_SIZE, fsname, nlen);
+	if (ret < 0)
+		goto error;
+	fsname[nlen] = '\0';
+
+	if (nlen == addex_len && !strncmp(addex_file_name, fsname, nlen)) {
+		mode |= S_IXUGO;
+	}
 
 	switch (nextfh & ROMFH_TYPE) {
 	case ROMFH_DIR:
